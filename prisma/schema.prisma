@@ -1,0 +1,271 @@
+// This is the Prisma schema file for ADHD Tasks application
+// It defines the data models and their relationships for PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and basic user information
+model User {
+  id                String            @id @default(uuid())
+  email             String            @unique
+  passwordHash      String
+  name              String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  // Relationships
+  preferences       UserPreferences?
+  projects          Project[]
+  tasks             Task[]
+  dailyPlans        DailyPlan[]
+  aiHistory         AIHistory[]
+}
+
+// User preferences and settings
+model UserPreferences {
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Daily limits
+  maxTasksPerDay    Int               @default(5)
+  maxWorkHoursPerDay Float            @default(8.0)
+  
+  // Preferred time blocks (stored as JSON)
+  preferredTimeBlocks Json?
+  
+  // Productivity preferences
+  peakProductivityStart String?       // Format: "HH:MM" (24h)
+  peakProductivityEnd   String?       // Format: "HH:MM" (24h)
+  preferredProjectsPerDay Int         @default(3)
+  
+  // Task ratio preferences
+  complexToSimpleRatio Float         @default(0.5) // 0.5 means 50% complex, 50% simple
+  
+  // Goals and motivation
+  shortTermGoals    Json?             // Array of goals
+  longTermGoals     Json?             // Array of goals
+  personalValues    Json?             // Array of values/priorities
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Project model
+model Project {
+  id                String            @id @default(uuid())
+  name              String
+  description       String?
+  goal              String?
+  priority          ProjectPriority   @default(MEDIUM)
+  category          ProjectCategory   @default(PERSONAL)
+  status            ProjectStatus     @default(ACTIVE)
+  
+  // Deadlines
+  softDeadline      DateTime?
+  hardDeadline      DateTime?
+  
+  // Ownership
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relationships
+  tasks             Task[]
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+}
+
+// Task model
+model Task {
+  id                String            @id @default(uuid())
+  name              String
+  description       String?
+  priority          Int               @default(3) // 1-5 scale
+  complexity        TaskComplexity    @default(MEDIUM) // Time to complete
+  energyType        EnergyType        @default(ROUTINE)
+  status            TaskStatus        @default(NOT_STARTED)
+  
+  // Tags (stored as JSON array of strings)
+  tags              Json?             // ["important", "meeting", etc.]
+  
+  // Relationships
+  projectId         String
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Task dependencies
+  dependsOn         TaskDependency[]  @relation("DependsOn")
+  dependedOnBy      TaskDependency[]  @relation("DependedOnBy")
+  
+  // Daily plans this task appears in
+  dailyPlans        DailyPlanTask[]
+  
+  // Completion tracking
+  completedAt       DateTime?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([status])
+  @@index([priority])
+  @@index([energyType])
+}
+
+// Task dependencies junction table
+model TaskDependency {
+  id                String            @id @default(uuid())
+  
+  // The task that depends on another
+  taskId            String
+  task              Task              @relation("DependsOn", fields: [taskId], references: [id], onDelete: Cascade)
+  
+  // The task that is depended on
+  dependsOnTaskId   String
+  dependsOnTask     Task              @relation("DependedOnBy", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime          @default(now())
+
+  @@unique([taskId, dependsOnTaskId])
+  @@index([taskId])
+  @@index([dependsOnTaskId])
+}
+
+// Daily plan model for AI-generated plans
+model DailyPlan {
+  id                String            @id @default(uuid())
+  date              DateTime          @default(now())
+  
+  // AI reasoning for this plan
+  aiReasoning       String?           @db.Text
+  
+  // Completion status
+  isCompleted       Boolean           @default(false)
+  
+  // Ownership
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Tasks in this plan
+  tasks             DailyPlanTask[]
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([date])
+  @@unique([userId, date])
+}
+
+// Junction table for daily plans and tasks
+model DailyPlanTask {
+  id                String            @id @default(uuid())
+  
+  // Relationships
+  dailyPlanId       String
+  dailyPlan         DailyPlan         @relation(fields: [dailyPlanId], references: [id], onDelete: Cascade)
+  
+  taskId            String
+  task              Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  // Order in the plan
+  order             Int
+  
+  // Recommended time block
+  recommendedStartTime String?        // Format: "HH:MM" (24h)
+  recommendedEndTime   String?        // Format: "HH:MM" (24h)
+  
+  // AI advice for this specific task
+  aiAdvice          String?           @db.Text
+  
+  // Completion tracking
+  isCompleted       Boolean           @default(false)
+  completedAt       DateTime?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([dailyPlanId, taskId])
+  @@index([dailyPlanId])
+  @@index([taskId])
+}
+
+// AI History for tracking prompts and responses
+model AIHistory {
+  id                String            @id @default(uuid())
+  
+  // Request data
+  requestData       Json              // Stored as JSON
+  responseData      Json              // Stored as JSON
+  
+  // Ownership
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Enums for various model fields
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum ProjectPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ProjectCategory {
+  WORK
+  PERSONAL
+  STUDY
+  HEALTH
+  FINANCE
+  SOCIAL
+  HOBBY
+  OTHER
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  POSTPONED
+}
+
+enum TaskComplexity {
+  VERY_SMALL  // 15 min
+  SMALL       // 30 min
+  MEDIUM      // 1 hour
+  LARGE       // 2 hours
+  VERY_LARGE  // 2+ hours
+}
+
+enum EnergyType {
+  CREATIVE
+  ROUTINE
+  COMMUNICATION
+  PHYSICAL
+}
