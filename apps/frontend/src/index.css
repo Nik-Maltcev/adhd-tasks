@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@tailwind variants;
+
+/* Custom base styles for ADHD-friendly UI */
+@layer base {
+  /* Respect user's reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Improved focus styles for better visibility */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary ring-2 ring-primary/30;
+  }
+
+  /* Base font settings for better readability */
+  html {
+    @apply text-base antialiased;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+    @apply min-h-screen;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  /* Card component with subtle animation for engagement */
+  .adhd-card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 transition-all duration-200;
+    @apply hover:shadow-lg focus-within:shadow-lg focus-within:ring-2 focus-within:ring-primary/30;
+  }
+
+  /* Task item with visual cues for priority */
+  .task-item {
+    @apply flex items-center gap-3 p-3 rounded-md border border-gray-200 dark:border-gray-700;
+    @apply hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors;
+  }
+
+  /* Priority indicators */
+  .priority-high {
+    @apply border-l-4 border-red-500;
+  }
+  
+  .priority-medium {
+    @apply border-l-4 border-amber-500;
+  }
+  
+  .priority-low {
+    @apply border-l-4 border-green-500;
+  }
+}
+
+/* Custom utility classes */
+@layer utilities {
+  /* Energy type indicators */
+  .energy-creative {
+    @apply bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200;
+  }
+  
+  .energy-routine {
+    @apply bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200;
+  }
+  
+  .energy-communication {
+    @apply bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200;
+  }
+  
+  .energy-physical {
+    @apply bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200;
+  }
+
+  /* Complexity indicators */
+  .complexity-badge {
+    @apply inline-flex items-center rounded-full px-2 py-1 text-xs font-medium;
+  }
+}
