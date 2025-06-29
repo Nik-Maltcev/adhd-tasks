@@ -7,14 +7,14 @@
       "runtime": "nodejs20.x"
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "apps/backend/src/index.ts"
+      "source": "/api/:match*",
+      "destination": "apps/backend/src/index.ts"
     },
     {
-      "src": "/(.*)",
-      "dest": "/apps/frontend/dist/$1"
+      "source": "/:match*",
+      "destination": "/apps/frontend/dist/:match*"
     }
   ],
   "headers": [
