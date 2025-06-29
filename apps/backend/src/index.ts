@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import { rateLimit } from 'express-rate-limit';
-import { PrismaClient } from '@prisma/client';
+import db from './lib/database';
 import dotenv from 'dotenv';
 import winston from 'winston';
 import path from 'path';
@@ -20,8 +20,8 @@ import dailyPlanRoutes from './routes/dailyPlans';
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../../..', '.env') });
 
-// Initialize Prisma client
-const prisma = new PrismaClient();
+// Determine if we should run in mock mode (no DATABASE_URL provided)
+const isMockMode = !process.env.DATABASE_URL;
 
 // Configure Winston logger
 const logger = winston.createLogger({
@@ -79,6 +79,13 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
+// -------------------------------------------------
+// Startup banner
+// -------------------------------------------------
+logger.info(
+  `Starting ADHD-Tasks API in ${isMockMode ? 'MOCK' : 'DATABASE'} mode`
+);
+
 // Logging middleware
 app.use(
   morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev', {
@@ -131,9 +138,13 @@ const PORT = process.env.PORT || 5000;
 // Connect to database and start server
 const startServer = async () => {
   try {
-    // Test database connection
-    await prisma.$connect();
-    logger.info('Connected to database successfully');
+    // Attempt to connect via abstraction layer (handles mock mode internally)
+    await db.connect();
+    logger.info(
+      isMockMode
+        ? 'DATABASE_URL not found – running in MOCK mode with in-memory data'
+        : 'Connected to database successfully'
+    );
     
     const server = app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
@@ -144,8 +155,8 @@ const startServer = async () => {
       logger.info(`${signal} received. Shutting down gracefully...`);
       server.close(async () => {
         logger.info('HTTP server closed');
-        // Close database connection
-        await prisma.$disconnect();
+        // Close database / cleanup
+        await db.disconnect();
         logger.info('Database connection closed');
         process.exit(0);
       });
@@ -168,7 +179,7 @@ const startServer = async () => {
     
   } catch (error) {
     logger.error('Failed to start server:', error);
-    await prisma.$disconnect();
+    await db.disconnect();
     process.exit(1);
   }
 };

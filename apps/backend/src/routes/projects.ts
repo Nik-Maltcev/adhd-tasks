@@ -10,7 +10,14 @@ import {
   changeProjectStatus
 } from '../controllers/projectController';
 import { authenticate } from '../middleware/auth';
-import { ErrorCode, ProjectPriority, ProjectCategory, ProjectStatus } from '../types';
+// Error codes remain in the shared types, but enum definitions are loaded
+// from mockData so the validation works in both mock and real DB modes.
+import { ErrorCode } from '../types';
+import {
+  ProjectPriority,
+  ProjectCategory,
+  ProjectStatus,
+} from '../lib/mockData';
 
 const router = express.Router();
 

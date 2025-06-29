@@ -11,7 +11,12 @@ import {
   getTaskStats
 } from '../controllers/taskController';
 import { authenticate } from '../middleware/auth';
-import { ErrorCode, TaskStatus, TaskComplexity, EnergyType } from '../types';
+import { ErrorCode } from '../types';
+import {
+  TaskStatus,
+  TaskComplexity,
+  EnergyType,
+} from '../lib/mockData';
 
 const router = express.Router();
 

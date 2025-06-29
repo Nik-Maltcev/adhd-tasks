@@ -64,5 +64,8 @@
     "productivity"
   ],
   "author": "ADHD Tasks Contributors",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  }
 }

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import db from '../lib/database';
 import { 
   hashPassword, 
   verifyPassword, 
@@ -14,8 +14,6 @@ import {
   ErrorCode,
   UserDTO
 } from '../types';
-
-const prisma = new PrismaClient();
 
 /**
  * Register a new user
@@ -54,9 +52,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
+    const existingUser = await db.findUserByEmail(email);
 
     if (existingUser) {
       res.status(409).json({
@@ -72,48 +68,39 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     // Hash password
     const passwordHash = await hashPassword(password);
 
-    // Create user with transaction to ensure both user and preferences are created
-    const user = await prisma.$transaction(async (tx) => {
-      // Create user
-      const newUser = await tx.user.create({
-        data: {
-          email,
-          passwordHash,
-          name: name || null,
-        }
-      });
+    // Create user
+    const newUser = await db.createUser({
+      email,
+      passwordHash,
+      name: name || null,
+    });
 
-      // Create default user preferences
-      await tx.userPreferences.create({
-        data: {
-          userId: newUser.id,
-          maxTasksPerDay: 5,
-          maxWorkHoursPerDay: 8.0,
-          preferredProjectsPerDay: 3,
-          complexToSimpleRatio: 0.5,
-          preferredTimeBlocks: {},
-          shortTermGoals: [],
-          longTermGoals: [],
-          personalValues: []
-        }
-      });
-
-      return newUser;
+    // Create default user preferences
+    await db.createUserPreferences({
+      userId: newUser.id,
+      maxTasksPerDay: 5,
+      maxWorkHoursPerDay: 8.0,
+      preferredProjectsPerDay: 3,
+      complexToSimpleRatio: 0.5,
+      preferredTimeBlocks: {},
+      shortTermGoals: [],
+      longTermGoals: [],
+      personalValues: []
     });
 
     // Generate JWT token
     const token = generateToken({
-      userId: user.id,
-      email: user.email
+      userId: newUser.id,
+      email: newUser.email
     });
 
     // Return user data and token
     const userResponse: UserDTO = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+      id: newUser.id,
+      email: newUser.email,
+      name: newUser.name,
+      createdAt: newUser.createdAt,
+      updatedAt: newUser.updatedAt
     };
 
     res.status(201).json({
@@ -157,12 +144,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        preferences: true
-      }
-    });
+    const user = await db.findUserByEmail(email);
 
     // Check if user exists
     if (!user) {
@@ -196,27 +178,29 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     });
 
     // Prepare user response without sensitive data
+    const userPreferences = await db.findUserPreferences(user.id);
+
     const userResponse: UserDTO = {
       id: user.id,
       email: user.email,
       name: user.name,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-      preferences: user.preferences ? {
-        id: user.preferences.id,
-        userId: user.preferences.userId,
-        maxTasksPerDay: user.preferences.maxTasksPerDay,
-        maxWorkHoursPerDay: user.preferences.maxWorkHoursPerDay,
-        preferredTimeBlocks: user.preferences.preferredTimeBlocks,
-        peakProductivityStart: user.preferences.peakProductivityStart,
-        peakProductivityEnd: user.preferences.peakProductivityEnd,
-        preferredProjectsPerDay: user.preferences.preferredProjectsPerDay,
-        complexToSimpleRatio: user.preferences.complexToSimpleRatio,
-        shortTermGoals: user.preferences.shortTermGoals,
-        longTermGoals: user.preferences.longTermGoals,
-        personalValues: user.preferences.personalValues,
-        createdAt: user.preferences.createdAt,
-        updatedAt: user.preferences.updatedAt
+      preferences: userPreferences ? {
+        id: userPreferences.id,
+        userId: userPreferences.userId,
+        maxTasksPerDay: userPreferences.maxTasksPerDay,
+        maxWorkHoursPerDay: userPreferences.maxWorkHoursPerDay,
+        preferredTimeBlocks: userPreferences.preferredTimeBlocks,
+        peakProductivityStart: userPreferences.peakProductivityStart,
+        peakProductivityEnd: userPreferences.peakProductivityEnd,
+        preferredProjectsPerDay: userPreferences.preferredProjectsPerDay,
+        complexToSimpleRatio: userPreferences.complexToSimpleRatio,
+        shortTermGoals: userPreferences.shortTermGoals,
+        longTermGoals: userPreferences.longTermGoals,
+        personalValues: userPreferences.personalValues,
+        createdAt: userPreferences.createdAt,
+        updatedAt: userPreferences.updatedAt
       } : null
     };
 
@@ -261,12 +245,7 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Get user with preferences
-    const userWithPreferences = await prisma.user.findUnique({
-      where: { id: user.userId },
-      include: {
-        preferences: true
-      }
-    });
+    const userWithPreferences = await db.findUserById(user.userId);
 
     if (!userWithPreferences) {
       res.status(404).json({
@@ -368,9 +347,7 @@ export const updatePassword = async (req: Request, res: Response): Promise<void>
     }
 
     // Get user
-    const userRecord = await prisma.user.findUnique({
-      where: { id: user.userId }
-    });
+    const userRecord = await db.findUserById(user.userId);
 
     if (!userRecord) {
       res.status(404).json({
@@ -400,10 +377,7 @@ export const updatePassword = async (req: Request, res: Response): Promise<void>
     const newPasswordHash = await hashPassword(newPassword);
 
     // Update password
-    await prisma.user.update({
-      where: { id: user.userId },
-      data: { passwordHash: newPasswordHash }
-    });
+    await db.updateUser(user.userId, { passwordHash: newPasswordHash });
 
     res.status(200).json({
       success: true,
