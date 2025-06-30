@@ -3,9 +3,9 @@ import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore'; // Assuming this will be created
 import { useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 
 // Placeholder pages (will be created in follow-up requests – except LoginPage which is now real)
-const RegisterPage = () => <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">Register Page Content</div>;
 const DashboardPage = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
     <h1 className="text-4xl font-bold mb-4">Welcome to ADHD Tasks 🎉</h1>

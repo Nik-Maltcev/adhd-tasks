@@ -167,7 +167,7 @@ importers:
         specifier: ^1.6.8
         version: 1.10.0
       clsx:
-        specifier: ^2.1.0
+        specifier: ^2.1.1
         version: 2.1.1
       date-fns:
         specifier: ^3.6.0
@@ -182,7 +182,7 @@ importers:
         specifier: ^19.1.0
         version: 19.1.0(react@19.1.0)
       react-hook-form:
-        specifier: ^7.49.2
+        specifier: ^7.59.0
         version: 7.59.0(react@19.1.0)
       react-hot-toast:
         specifier: ^2.4.1
